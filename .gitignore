@@ -1,3 +1,5 @@
 .idea
 .venv
 tokens.txt
+**/.DS_Store
+__pycache__
