@@ -12,17 +12,6 @@ import credentials
 chat_modes = {}
 quiz_scores = {}
 
-### 4. *"Квіз"*
-# Телеграм-бот повинен обробляти команду /quiz.
-# При обробці команди бот надсилає заздалегідь підготовлене зображення
-# та пропонує вибір з декількох тем, використовуючи кнопки.
-# Після вибору теми, передати запит ChatGPT і, отримавши питання квізу, передати його
-# користувачеві. Наступне текстове повідомлення користувача вважається відповіддю.
-# Його потрібно передати ChatGPT та отримати результат. Результат передати користувачеві
-# з можливістю задати ще питання на ту ж тему, змінити тему або закінчити квіз, за допомогою кнопок.
-# Бот також повинен вести рахунок правильних відповідей та
-# відображати разом з черговим результатом
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = load_message('main')
@@ -77,20 +66,11 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_modes[update.message.from_user.id] = 'QUIZ_MODE'
+    user_id = update.message.from_user.id
     await send_image(update, context, 'quiz')
-    await send_text_buttons(
-        update, context,
-        load_message('quiz'),
-        buttons={
-            'quiz_prog': 'Програмування',
-            'quiz_math': 'Математика',
-            'quiz_biology': 'Біологія',
-            'quiz_more': 'Ще питання на ту ж саму тему'
-        }
-    )
+    await quiz_show_topics(update, context, user_id)
     chat_gpt.set_prompt(load_prompt('quiz'))
-    quiz_scores[update.message.from_user.id] = 0
+    quiz_scores[user_id] = 0
 
 
 
@@ -134,12 +114,23 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     elif mode == 'QUIZ_WAITING_FOR_ANSWER_MODE':
         answer = await chat_gpt.add_message(text)
-        if answer == 'Правильно!':
+        if answer.strip().lower().startswith('правильно'):
             quiz_scores[update.message.from_user.id] += 1
         await send_text(update, context, answer)
-        await send_text(update, context, f'Your score -> {quiz_scores[update.message.from_user.id]}')
+        await send_text(update, context, f'Ваш рахунок: {quiz_scores[update.message.from_user.id]}')
+        await send_text_buttons(
+            update, context, 
+            'Що робимо далі?',
+            {
+                'quiz_more': 'Ще питання на ту ж тему',
+                'quiz_change': 'Змінити тему',
+                'quiz_finish': 'Закінчити квіз'
+            }
+        )
         chat_modes[update.message.from_user.id] = 'QUIZ_MODE'
 
+        
+        
 
 async def random_buttons_handler(update: Update, context):
     query = update.callback_query.data
@@ -149,6 +140,7 @@ async def random_buttons_handler(update: Update, context):
         await random(update, context)
     await update.callback_query.answer()
 
+    
 async def gpt_buttons_handler(update: Update, context):
     query = update.callback_query.data
     if query == 'gpt_finish':
@@ -157,7 +149,7 @@ async def gpt_buttons_handler(update: Update, context):
 
     await update.callback_query.answer()
 
-
+    
 async def talk_buttons_handler(update: Update, context):
     query = update.callback_query.data
 
@@ -179,13 +171,51 @@ async def talk_buttons_handler(update: Update, context):
         await send_text(update, context, f"Тепер ви спілкуєтеся з {personality}")
 
     await update.callback_query.answer()
+    
+
+    
+    
+async def quiz_show_question(update, context, user_id, query_for_gpt):
+    response = await chat_gpt.add_message(query_for_gpt)
+    await send_text(update, context, response)
+    chat_modes[user_id] = 'QUIZ_WAITING_FOR_ANSWER_MODE'
+
+
+async def quiz_show_topics(update, context, user_id):
+    chat_modes[user_id] = 'QUIZ_MODE'
+    await send_text_buttons(
+        update, context,
+        load_message('quiz'),
+        buttons={
+            'quiz_prog': 'Програмування',
+            'quiz_math': 'Математика',
+            'quiz_biology': 'Біологія'
+        }
+    )
+
+
+async def quiz_end(update, context, user_id):
+    final_score = quiz_scores.get(user_id, 0)
+    await send_text(update, context, f'Вікторину завершено! Кількість правильних відповідей: {final_score}')
+    chat_modes[user_id] = None
+    await start(update, context)
 
 
 async def quiz_buttons_handler(update: Update, context):
     query = update.callback_query.data
-    response = await chat_gpt.add_message(query)
-    await send_text(update, context, response)
-    chat_modes[update.callback_query.from_user.id] = 'QUIZ_WAITING_FOR_ANSWER_MODE'
+    user_id = update.callback_query.from_user.id
+
+    topics = ['quiz_prog', 'quiz_math', 'quiz_biology']
+
+    if query in topics:
+        await quiz_show_question(update, context, user_id, query)
+    elif query == 'quiz_more':
+        await quiz_show_question(update, context, user_id, query)
+    elif query == 'quiz_change':
+        await quiz_show_topics(update, context, user_id)
+    elif query == 'quiz_finish':
+        await quiz_end(update, context, user_id)
+
     await update.callback_query.answer()
 
 
