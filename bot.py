@@ -194,6 +194,7 @@ async def talk_buttons_handler(update: Update, context):
 
 async def recommend_send(update, context, user_id):
     state = recommend_state[user_id]
+    await send_text(update, context, 'Обробляю ваш запит...')
     prompt_text = load_prompt('recommend').format(
         category=state['category'],
         genre=state['genre'],
