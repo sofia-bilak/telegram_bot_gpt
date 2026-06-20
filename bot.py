@@ -11,7 +11,7 @@ import credentials
 
 chat_modes = {}
 quiz_scores = {}
-
+recommend_state = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = load_message('main')
@@ -22,9 +22,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'random': 'Дізнатися випадковий цікавий факт 🧠',
         'gpt': 'Задати питання чату GPT 🤖',
         'talk': 'Поговорити з відомою особистістю 👤',
-        'quiz': 'Взяти участь у квізі ❓'
-        # Додати команду в меню можна так:
-        # 'command': 'button text'
+        'quiz': 'Взяти участь у вікторині ❓',
+        'recommend': 'Обрати фільм, книгу чи музику 🔎'
 
     })
 
@@ -73,6 +72,18 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quiz_scores[user_id] = 0
 
 
+async def recommend(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_image(update, context, 'recommend')
+    await send_text_buttons(
+        update, context,
+        load_message('recommend'),
+        buttons={
+            'recommend_movie': 'Фільми',
+            'recommend_book': 'Книги',
+            'recommend_music': 'Музика'
+        }
+    )
+
 
 
 async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,6 +101,8 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await talk(update, context)
         elif text == '/quiz':
             await quiz(update, context)
+        elif text == '/recommend':
+            await recommend(update, context)
         else:
             await send_text(update, context, 'I dont know such command. Use /start command for information!')
 
@@ -123,11 +136,15 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             'Що робимо далі?',
             {
                 'quiz_more': 'Ще питання на ту ж тему',
-                'quiz_change': 'Змінити тему',
-                'quiz_finish': 'Закінчити квіз'
+                'quiz_change': 'Змінити тему вікторини',
+                'quiz_finish': 'Закінчити вікторину'
             }
         )
         chat_modes[update.message.from_user.id] = 'QUIZ_MODE'
+    elif mode == 'RECOMMEND_WAITING_FOR_GENRE':
+        user_id = update.message.from_user.id
+        recommend_state[user_id]['genre'] = text
+        await recommend_send(update, context, user_id)
 
         
         
@@ -171,10 +188,62 @@ async def talk_buttons_handler(update: Update, context):
         await send_text(update, context, f"Тепер ви спілкуєтеся з {personality}")
 
     await update.callback_query.answer()
+
+
+
+
+async def recommend_send(update, context, user_id):
+    state = recommend_state[user_id]
+    await send_text(update, context, 'Обробляю ваш запит...')
+    prompt_text = load_prompt('recommend').format(
+        category=state['category'],
+        genre=state['genre'],
+        disliked=', '.join(state['disliked']) if state['disliked'] else 'немає'
+    )
+    response = await chat_gpt.send_question(prompt_text, 'Дай рекомендації')
+    state['disliked'].append(response)
+    await send_image(update, context, state['image'])
+    await send_text_buttons(
+        update, context, response,
+        {
+            'recommend_dislike': 'Не подобається',
+            'recommend_finish': 'Закінчити'
+        }
+    )
+    chat_modes[user_id] = 'RECOMMEND_MODE'
+
+
+async def recommend_buttons_handler(update: Update, context):
+    query = update.callback_query.data
+    user_id = update.callback_query.from_user.id
+
+    categories = {
+        'recommend_movie': ('фільми', 'movies'),
+        'recommend_book': ('книги', 'books'),
+        'recommend_music': ('музика', 'music'),
+    }
+
+    if query in categories:
+        category, image_name = categories[query]
+        recommend_state[user_id] = {
+            'category': category,
+            'genre': None,
+            'disliked': [],
+            'image': image_name
+        }
+        chat_modes[user_id] = 'RECOMMEND_WAITING_FOR_GENRE'
+        await send_text(update, context, 'Який жанр вас цікавить?')
+    elif query == 'recommend_dislike':
+        await recommend_send(update, context, user_id)
+    elif query == 'recommend_finish':
+        chat_modes[user_id] = None
+        await start(update, context)
+
+    await update.callback_query.answer()
     
 
     
-    
+
 async def quiz_show_question(update, context, user_id, query_for_gpt):
     response = await chat_gpt.add_message(query_for_gpt)
     await send_text(update, context, response)
@@ -230,6 +299,7 @@ app.add_handler(CommandHandler('random', random))
 app.add_handler(CommandHandler('gpt', gpt))
 app.add_handler(CommandHandler('talk', talk))
 app.add_handler(CommandHandler('quiz', quiz))
+app.add_handler(CommandHandler('recommend', recommend))
 
 
 # Зареєструвати обробник колбеку можна так:
@@ -237,5 +307,6 @@ app.add_handler(CallbackQueryHandler(random_buttons_handler, pattern='^random_.*
 app.add_handler(CallbackQueryHandler(gpt_buttons_handler, pattern='^gpt_.*'))
 app.add_handler(CallbackQueryHandler(talk_buttons_handler, pattern='^talk_.*'))
 app.add_handler(CallbackQueryHandler(quiz_buttons_handler, pattern='^quiz_.*'))
+app.add_handler(CallbackQueryHandler(recommend_buttons_handler, pattern='^recommend_.*'))
 # app.add_handler(CallbackQueryHandler(default_callback_handler))
 app.run_polling()
