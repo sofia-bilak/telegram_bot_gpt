@@ -70,7 +70,7 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'talk_cobain': 'Курт Кобейн',
             'talk_queen': 'Єлизавета II',
             'talk_tolkien': 'Джон Толкін',
-            'talk_nietzsсhe': 'Фрідріх Ніцше',
+            'talk_nietzsche': 'Фрідріх Ніцше',
             'talk_hawking': 'Стівен Гокінг'
         }
     )
@@ -161,34 +161,23 @@ async def gpt_buttons_handler(update: Update, context):
 async def talk_buttons_handler(update: Update, context):
     query = update.callback_query.data
 
+    personalities = {
+        'talk_cobain': ('talk_cobain', 'Курт Кобейн'),
+        'talk_queen': ('talk_queen', 'Єлизавета II'),
+        'talk_tolkien': ('talk_tolkien', 'Джон Толкін'),
+        'talk_nietzsche': ('talk_nietzsche', 'Фрідріх Ніцше'),
+        'talk_hawking': ('talk_hawking', 'Стівен Гокінг'),
+    }
+    
     if query == 'talk_finish':
         chat_modes[update.callback_query.from_user.id] = None
         await start(update, context)
-        await update.callback_query.answer()
-        return
+    elif query in personalities:
+        prompt_name, personality = personalities[query]
+        chat_gpt.set_prompt(load_prompt(prompt_name))
+        await send_image(update, context, prompt_name)
+        await send_text(update, context, f"Тепер ви спілкуєтеся з {personality}")
 
-    if query == 'talk_cobain':
-        chat_gpt.set_prompt(load_prompt('talk_cobain'))
-        await send_image(update, context, 'talk_cobain')
-        personality = "Курт Кобейн"
-    elif query == 'talk_queen':
-        chat_gpt.set_prompt(load_prompt('talk_queen'))
-        await send_image(update, context, 'talk_queen')
-        personality = "Єлизавета II"
-    elif query == 'talk_tolkien':
-        chat_gpt.set_prompt(load_prompt('talk_tolkien'))
-        await send_image(update, context, 'talk_tolkien')
-        personality = "Джон Толкін"
-    elif query == 'talk_nietzsche':
-        chat_gpt.set_prompt(load_prompt('talk_nietzsche'))
-        await send_image(update, context, 'talk_nietzsche')
-        personality = "Фрідріх Ніцше"
-    elif query == 'talk_hawking':
-        chat_gpt.set_prompt(load_prompt('talk_hawking'))
-        await send_image(update, context, 'talk_hawking')
-        personality = "Стівен Гокінг"
-
-    await send_text(update, context, f"Тепер ви спілкуєтеся з {personality}")
     await update.callback_query.answer()
 
 
