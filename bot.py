@@ -59,6 +59,23 @@ async def gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_image(update, context, 'gpt')
     await send_text(update, context, load_message('gpt'))
 
+
+async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_modes[update.message.from_user.id] = 'TALK_MODE'
+    await send_image(update, context, 'talk')
+    await send_text_buttons(
+        update, context,
+        load_message('talk'),
+        buttons={
+            'talk_cobain': 'Курт Кобейн',
+            'talk_queen': 'Єлизавета II',
+            'talk_tolkien': 'Джон Толкін',
+            'talk_nietzsсhe': 'Фрідріх Ніцше',
+            'talk_hawking': 'Стівен Гокінг'
+        }
+    )
+
+
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_modes[update.message.from_user.id] = 'QUIZ_MODE'
     await send_image(update, context, 'quiz')
@@ -89,6 +106,8 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await random(update, context)
         elif text == '/gpt':
             await gpt(update, context)
+        elif text == '/talk':
+            await talk(update, context)
         elif text == '/quiz':
             await quiz(update, context)
         else:
@@ -103,6 +122,14 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             update, context, response,
             {
                 'gpt_finish': 'Закінчити',
+            }
+        )
+    elif mode == 'TALK_MODE':
+        response = await chat_gpt.add_message(text)
+        await send_text_buttons(
+            update, context, response,
+            {
+                'talk_finish': 'Закінчити',
             }
         )
     elif mode == 'QUIZ_WAITING_FOR_ANSWER_MODE':
@@ -131,6 +158,40 @@ async def gpt_buttons_handler(update: Update, context):
     await update.callback_query.answer()
 
 
+async def talk_buttons_handler(update: Update, context):
+    query = update.callback_query.data
+
+    if query == 'talk_finish':
+        chat_modes[update.callback_query.from_user.id] = None
+        await start(update, context)
+        await update.callback_query.answer()
+        return
+
+    if query == 'talk_cobain':
+        chat_gpt.set_prompt(load_prompt('talk_cobain'))
+        await send_image(update, context, 'talk_cobain')
+        personality = "Курт Кобейн"
+    elif query == 'talk_queen':
+        chat_gpt.set_prompt(load_prompt('talk_queen'))
+        await send_image(update, context, 'talk_queen')
+        personality = "Єлизавета II"
+    elif query == 'talk_tolkien':
+        chat_gpt.set_prompt(load_prompt('talk_tolkien'))
+        await send_image(update, context, 'talk_tolkien')
+        personality = "Джон Толкін"
+    elif query == 'talk_nietzsche':
+        chat_gpt.set_prompt(load_prompt('talk_nietzsche'))
+        await send_image(update, context, 'talk_nietzsche')
+        personality = "Фрідріх Ніцше"
+    elif query == 'talk_hawking':
+        chat_gpt.set_prompt(load_prompt('talk_hawking'))
+        await send_image(update, context, 'talk_hawking')
+        personality = "Стівен Гокінг"
+
+    await send_text(update, context, f"Тепер ви спілкуєтеся з {personality}")
+    await update.callback_query.answer()
+
+
 async def quiz_buttons_handler(update: Update, context):
     query = update.callback_query.data
     response = await chat_gpt.add_message(query)
@@ -145,14 +206,17 @@ app = ApplicationBuilder().token(credentials.BOT_TOKEN).build()
 # Зареєструвати обробник команди можна так:
 app.add_handler(MessageHandler(None, plain_text_handler))
 
-# app.add_handler(CommandHandler('start', start))
-# app.add_handler(CommandHandler('random', random))
-# app.add_handler(CommandHandler('gpt', gpt))
+app.add_handler(CommandHandler('start', start))
+app.add_handler(CommandHandler('random', random))
+app.add_handler(CommandHandler('gpt', gpt))
+app.add_handler(CommandHandler('talk', talk))
+app.add_handler(CommandHandler('quiz', quiz))
 
 
 # Зареєструвати обробник колбеку можна так:
 app.add_handler(CallbackQueryHandler(random_buttons_handler, pattern='^random_.*'))
 app.add_handler(CallbackQueryHandler(gpt_buttons_handler, pattern='^gpt_.*'))
+app.add_handler(CallbackQueryHandler(talk_buttons_handler, pattern='^talk_.*'))
 app.add_handler(CallbackQueryHandler(quiz_buttons_handler, pattern='^quiz_.*'))
 # app.add_handler(CallbackQueryHandler(default_callback_handler))
 app.run_polling()
