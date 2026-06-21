@@ -15,12 +15,6 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quiz_scores[user_id] = 0
 
 
-async def quiz_show_question(update, context, user_id, query_for_gpt):
-    response = await chat_gpt.add_message(query_for_gpt)
-    await send_text(update, context, response)
-    chat_modes[user_id] = 'QUIZ_WAITING_FOR_ANSWER_MODE'
-
-
 async def quiz_show_topics(update, context, user_id):
     chat_modes[user_id] = 'QUIZ_MODE'
     await send_text_buttons(
@@ -32,6 +26,12 @@ async def quiz_show_topics(update, context, user_id):
             'quiz_biology': 'Біологія'
         }
     )
+
+
+async def quiz_show_question(update, context, user_id, query_for_gpt):
+    response = await chat_gpt.add_message(query_for_gpt)
+    await send_text(update, context, response)
+    chat_modes[user_id] = 'QUIZ_WAITING_FOR_ANSWER_MODE'
 
 
 async def quiz_end(update, context, user_id):

@@ -36,7 +36,7 @@ def main():
     app.add_handler(CallbackQueryHandler(voice_buttons_handler, pattern='^voice_.*'))
 
     app.add_handler(MessageHandler(filters.VOICE, voice_message_handler))
-    app.add_handler(MessageHandler(None, plain_text_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, plain_text_handler))
 
     app.run_polling()
 
