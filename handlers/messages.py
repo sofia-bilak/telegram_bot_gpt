@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from state import chat_modes, quiz_scores, recommend_state
-from handlers import start, random, gpt, talk, quiz, recommend, recommend_send
+from handlers import start, random, gpt, talk, quiz, recommend, recommend_send, voice
 from util import send_text, load_prompt, send_text_buttons
 from services.instance import chat_gpt
 
@@ -74,7 +74,8 @@ async def plain_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             '/gpt': gpt,
             '/talk': talk,
             '/quiz': quiz,
-            '/recommend': recommend
+            '/recommend': recommend,
+            '/voice': voice
         }
 
         handler = commands.get(text)
