@@ -13,6 +13,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'gpt': 'Задати питання чату GPT 🤖',
         'talk': 'Поговорити з відомою особистістю 👤',
         'quiz': 'Взяти участь у вікторині ❓',
-        'recommend': 'Обрати фільм, книгу чи музику 🔎'
-
+        'recommend': 'Обрати фільм, книгу чи музику 🔎',
+        'voice': 'Спілкуватись з ChatGPT голосовими повідомленнями 🎤'
     })

@@ -26,6 +26,13 @@ async def send_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
                                           parse_mode=ParseMode.MARKDOWN)
 
 
+# надсилає в чат аудіоповідомлення
+async def send_audio(update, context, audio_path):
+    with open(audio_path, "rb") as audio_file:
+        await context.bot.send_audio(chat_id=update.effective_chat.id,
+                                     audio=audio_file, title="Відповідь ChatGPT")
+
+
 # надсилає в чат html повідомлення
 async def send_html(update: Update, context: ContextTypes.DEFAULT_TYPE,
                     text: str) -> Message:
